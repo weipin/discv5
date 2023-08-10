@@ -39,6 +39,8 @@ pub enum Error {
     Error(String),
     /// An IO error occurred.
     Io(std::io::Error),
+    /// Outgoing message count overflowed.
+    OutgoingMessageCountOverflow,
 }
 
 impl From<std::io::Error> for Error {

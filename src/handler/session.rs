@@ -62,7 +62,10 @@ impl Session {
         src_id: NodeId,
         message: &[u8],
     ) -> Result<Packet, Error> {
-        self.counter += 1;
+        self.counter = self
+            .counter
+            .checked_add(1)
+            .ok_or(Error::OutgoingMessageCountOverflow)?;
 
         // If the message nonce length is ever set below 4 bytes this will explode. The packet
         // size constants shouldn't be modified.
@@ -272,4 +275,31 @@ pub(crate) fn build_dummy_session() -> Session {
         encryption_key: [0; 16],
         decryption_key: [0; 16],
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::DefaultProtocolId;
+
+    use super::*;
+
+    #[test]
+    fn test_outgoing_message_count_overflow() {
+        let counter = u32::MAX;
+        let mut session = Session {
+            keys: Keys {
+                encryption_key: [0; 16],
+                decryption_key: [0; 16],
+            },
+            old_keys: None,
+            awaiting_enr: None,
+            counter,
+        };
+        let result = session.encrypt_message::<DefaultProtocolId>(NodeId::random(), b"");
+        match result {
+            Err(Error::OutgoingMessageCountOverflow) => {}
+            Err(err) => panic!("unexpected error result: {}", err),
+            Ok(_) => panic!("unexpected OK result"),
+        }
+    }
 }
